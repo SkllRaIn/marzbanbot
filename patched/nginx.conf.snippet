@@ -1,0 +1,27 @@
+# Добавить в существующий server-блок панели (panel.komissarovka.ru)
+# Файл: /etc/nginx/sites-available/panel.komissarovka.ru (или аналог)
+
+# YooKassa webhook
+location /webhook/blayvpn {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_read_timeout 30s;
+}
+
+# Telegram user bot webhook
+location /webhook/user {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 30s;
+}
+
+# Telegram admin bot webhook
+location /webhook/admin {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 30s;
+}

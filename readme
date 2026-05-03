@@ -1,0 +1,186 @@
+📋 Полный гайд по восстановлению BlayVPN
+1. Проверка статуса всех сервисов
+bash
+# Проверка бота
+systemctl status blayvpn
+
+# Проверка сервера подписок
+systemctl status blayvpn-sub
+
+# Проверка Marzban
+docker ps | grep marzban
+
+# Проверка Nginx
+systemctl status nginx
+
+# Проверка Redis
+systemctl status redis-server
+
+# Проверка PostgreSQL
+systemctl status postgresql
+2. Основные команды для перезапуска
+bash
+# Перезапустить всё сразу
+systemctl restart blayvpn blayvpn-sub nginx redis-server postgresql
+cd /opt/Marzban && docker compose restart
+
+# По отдельности
+systemctl restart blayvpn      # бот
+systemctl restart blayvpn-sub  # сервер подписок
+systemctl restart nginx        # веб-сервер
+systemctl restart redis-server # кэш
+cd /opt/Marzban && docker compose restart  # панель
+3. Просмотр логов (ошибки)
+bash
+# Логи бота
+journalctl -u blayvpn -f
+
+# Логи сервера подписок
+journalctl -u blayvpn-sub -f
+
+# Логи Marzban
+docker logs marzban-marzban-1 --tail 50
+
+# Логи Nginx
+tail -f /var/log/nginx/error.log
+
+# Логи Redis
+journalctl -u redis-server -f
+4. Восстановление при ошибках
+Ошибка 502 Bad Gateway (подписка не работает)
+bash
+# Проверка портов
+netstat -tlnp | grep 8081  # сервер подписок
+netstat -tlnp | grep 8080  # бот
+netstat -tlnp | grep 8000  # Marzban
+
+# Перезапустить всё
+systemctl restart blayvpn-sub
+systemctl restart nginx
+Бот не отвечает
+bash
+# Проверка вебхуков
+source /opt/blayvpn/.env
+curl "https://api.telegram.org/bot${BOT_TOKEN_USER}/getWebhookInfo"
+
+# Обновить вебхук
+curl -X POST "https://api.telegram.org/bot${BOT_TOKEN_USER}/setWebhook" \
+  -d "url=https://panel.komissarovka.ru/webhook/user"
+
+curl -X POST "https://api.telegram.org/bot${BOT_TOKEN_ADMIN}/setWebhook" \
+  -d "url=https://panel.komissarovka.ru/webhook/admin"
+Marzban не отвечает
+bash
+cd /opt/Marzban
+docker compose down
+docker compose up -d
+sleep 10
+docker logs marzban-marzban-1 --tail 20
+Нет подключения к базе данных
+bash
+# Проверка PostgreSQL
+sudo -u postgres psql -c "SELECT 1"
+
+# Перезапуск
+systemctl restart postgresql
+
+# Проверка подключения бота
+cd /opt/blayvpn && source venv/bin/activate
+python -c "from core.database import async_session_maker; print('OK')"
+Очистка Redis (если зависли сессии)
+bash
+redis-cli FLUSHALL
+systemctl restart blayvpn
+5. Восстановление pool.txt (если файл повреждён)
+bash
+# Бэкап текущего
+cp /opt/blayvpn/pool.txt /opt/blayvpn/pool.txt.bak
+
+# Базовый минимальный набор
+cat > /opt/blayvpn/pool.txt << 'EOF'
+# Рабочие сервера
+vless://b875b7
+одним текстом в readmi
+markdown
+# BlayVPN - Telegram бот для продажи VPN подписок
+
+## 🚀 Быстрый старт
+
+### Проверка статуса всех сервисов
+```bash
+systemctl status blayvpn blayvpn-sub nginx redis-server postgresql
+docker ps | grep marzban
+Перезапуск всех сервисов
+bash
+systemctl restart blayvpn blayvpn-sub nginx redis-server postgresql
+cd /opt/Marzban && docker compose restart
+Просмотр логов
+bash
+journalctl -u blayvpn -f          # Логи бота
+journalctl -u blayvpn-sub -f      # Логи сервера подписок
+docker logs marzban-marzban-1 --tail 50  # Логи панели
+tail -f /var/log/nginx/error.log   # Логи веб-сервера
+🔧 Решение типовых проблем
+1. Ошибка 502 Bad Gateway (подписка не работает)
+bash
+netstat -tlnp | grep 8081          # Проверить порт
+systemctl restart blayvpn-sub      # Перезапустить сервер подписок
+systemctl restart nginx            # Перезапустить Nginx
+2. Бот не отвечает
+bash
+source /opt/blayvpn/.env
+curl "https://api.telegram.org/bot${BOT_TOKEN_USER}/getWebhookInfo"
+curl -X POST "https://api.telegram.org/bot${BOT_TOKEN_USER}/setWebhook" \
+  -d "url=https://panel.komissarovka.ru/webhook/user"
+3. Очистка Redis (зависшие сессии)
+bash
+redis-cli FLUSHALL
+systemctl restart blayvpn
+4. Восстановление pool.txt
+bash
+cp /opt/blayvpn/pool.txt /opt/blayvpn/pool.txt.bak  # Бэкап
+# Добавить базовые сервера...
+systemctl restart blayvpn-sub
+5. Проблемы с Marzban
+bash
+cd /opt/Marzban
+docker compose down && docker compose up -d
+docker logs marzban-marzban-1 --tail 30
+6. Проблемы с БД
+bash
+systemctl restart postgresql
+sudo -u postgres psql -c "SELECT 1"
+📁 Важные файлы и директории
+Путь	Назначение
+/opt/blayvpn/	Код бота
+/opt/blayvpn/pool.txt	Список серверов для подписки
+/opt/Marzban/	Панель Marzban
+/etc/nginx/sites-available/marzban	Конфиг Nginx
+/opt/blayvpn/.env	Переменные окружения
+🔄 Обновление серверов в подписке
+Добавить сервер в pool.txt
+bash
+echo "vless://uuid@address:port?params#Name" >> /opt/blayvpn/pool.txt
+systemctl restart blayvpn-sub
+Добавить сервер в Marzban
+Открыть https://panel.komissarovka.ru/dashboard/
+
+Nodes → Create Node
+
+Заполнить поля и сохранить
+
+🆘 Экстренное восстановление
+Если всё сломалось:
+
+bash
+systemctl restart blayvpn blayvpn-sub nginx redis-server postgresql
+cd /opt/Marzban && docker compose restart
+redis-cli FLUSHALL
+nginx -t && systemctl restart nginx
+📞 Контакты поддержки
+Telegram: @blayvpn_support
+
+Email: support@blayvpn.ru
+
+text
+

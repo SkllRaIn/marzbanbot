@@ -1,0 +1,28 @@
+[Unit]
+Description=BlayVPN Telegram Bots
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=blayvpn
+Group=blayvpn
+WorkingDirectory=/opt/blayvpn
+ExecStart=/opt/blayvpn/venv/bin/python -m bots.launcher
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/blayvpn/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blayvpn
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/blayvpn
+
+[Install]
+WantedBy=multi-user.target
